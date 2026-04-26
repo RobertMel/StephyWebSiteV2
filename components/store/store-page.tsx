@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+export const revalidate = 0; // Force le site à se mettre à jour à chaque visite
 import { Header } from './header'
 import { ProductGrid } from './product-grid'
 import { CartDrawer } from './cart-drawer'

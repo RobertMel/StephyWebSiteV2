@@ -18,13 +18,10 @@ import { Lock, RefreshCw, Save, Check, AlertCircle, ArrowLeft, Package } from 'l
 import Link from 'next/link'
 import Image from 'next/image'
 
-const ADMIN_PASSWORD = 'stephy2024'
+// Force le rafraîchissement des données à chaque visite
+export const revalidate = 0;
 
-const categoryLabels: Record<Category, string> = {
-  parfums: 'Parfums',
-  soins: 'Soins',
-  cosmetiques: 'Cosmétiques',
-}
+const ADMIN_PASSWORD = 'stephy2024'
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -42,8 +39,7 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .order('category', { ascending: true })
-      .order('name', { ascending: true })
+      .order('id', { ascending: true })
 
     if (error) {
       console.error('Error fetching products:', error)
@@ -69,7 +65,7 @@ export default function AdminPage() {
     }
   }
 
-  const handleProductChange = (productId: string, field: keyof Product, value: string | number | null) => {
+  const handleProductChange = (productId: string, field: keyof Product, value: any) => {
     setEditedProducts((prev) => ({
       ...prev,
       [productId]: {
@@ -95,17 +91,14 @@ export default function AdminPage() {
       console.error('Error updating product:', error)
       alert('Erreur lors de la mise à jour')
     } else {
-      // Update local state
       setProducts((prev) =>
         prev.map((p) => (p.id === productId ? { ...p, ...changes } : p))
       )
-      // Clear edited state for this product
       setEditedProducts((prev) => {
         const newState = { ...prev }
         delete newState[productId]
         return newState
       })
-      // Show saved indicator
       setSavedId(productId)
       setTimeout(() => setSavedId(null), 2000)
     }
@@ -117,6 +110,7 @@ export default function AdminPage() {
     if (edited && field in edited) {
       return edited[field]
     }
+    // @ts-ignore
     return product[field]
   }
 
@@ -124,7 +118,6 @@ export default function AdminPage() {
     return !!editedProducts[productId] && Object.keys(editedProducts[productId]).length > 0
   }
 
-  // Login screen
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -134,9 +127,7 @@ export default function AdminPage() {
               <Lock className="size-6 text-primary" />
             </div>
             <CardTitle className="font-serif text-xl">Administration</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Perfumes loves by Stephy
-            </p>
+            <p className="text-sm text-muted-foreground">Perfumes loves by Stephy</p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -155,19 +146,13 @@ export default function AdminPage() {
                 />
                 {passwordError && (
                   <p className="flex items-center gap-1 text-sm text-destructive">
-                    <AlertCircle className="size-4" />
-                    Mot de passe incorrect
+                    <AlertCircle className="size-4" /> Mot de passe incorrect
                   </p>
                 )}
               </div>
-              <Button type="submit" className="w-full">
-                Connexion
-              </Button>
+              <Button type="submit" className="w-full">Connexion</Button>
               <Button variant="ghost" asChild className="w-full">
-                <Link href="/">
-                  <ArrowLeft className="mr-2 size-4" />
-                  Retour à la boutique
-                </Link>
+                <Link href="/"><ArrowLeft className="mr-2 size-4" /> Boutique</Link>
               </Button>
             </form>
           </CardContent>
@@ -176,168 +161,114 @@ export default function AdminPage() {
     )
   }
 
-  // Admin dashboard
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <Package className="size-5 text-primary" />
-            <h1 className="font-serif text-lg font-semibold text-foreground">
-              Gestion des produits
-            </h1>
+            <h1 className="font-serif text-lg font-semibold">Gestion des produits</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchProducts}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`mr-2 size-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Actualiser
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/">
-                <ArrowLeft className="mr-2 size-4" />
-                Boutique
-              </Link>
+            <Button variant="outline" size="sm" onClick={fetchProducts} disabled={isLoading}>
+              <RefreshCw className={`mr-2 size-4 ${isLoading ? 'animate-spin' : ''}`} /> Actualiser
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Stats */}
       <div className="border-b bg-muted/30 px-4 py-3">
         <div className="flex flex-wrap gap-4 text-sm">
-          <span className="text-muted-foreground">
-            Total: <strong className="text-foreground">{products.length}</strong> produits
-          </span>
-          <span className="text-muted-foreground">
-            Parfums: <strong className="text-foreground">{products.filter(p => p.category === 'parfums').length}</strong>
-          </span>
-          <span className="text-muted-foreground">
-            Soins: <strong className="text-foreground">{products.filter(p => p.category === 'soins').length}</strong>
-          </span>
-          <span className="text-muted-foreground">
-            Cosmétiques: <strong className="text-foreground">{products.filter(p => p.category === 'cosmetiques').length}</strong>
-          </span>
+          <span>Total: <strong>{products.length}</strong></span>
+          {/* Correction des filtres pour accepter les majuscules de la BDD */}
+          <span>Parfums: <strong>{products.filter(p => (p.category as any)?.toLowerCase() === 'parfums').length}</strong></span>
+          <span>Soins: <strong>{products.filter(p => (p.category as any)?.toLowerCase() === 'soins').length}</strong></span>
+          <span>Cosmétiques: <strong>{products.filter(p => (p.category as any)?.toLowerCase() === 'cosmetiques' || (p.category as any) === 'Cosmétiques').length}</strong></span>
         </div>
       </div>
 
-      {/* Products List */}
-      <main className="p-4">
+      <main className="p-4 max-w-4xl mx-auto">
         {isLoading ? (
           <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-32 animate-pulse rounded-lg bg-muted" />
-            ))}
+            {[...Array(3)].map((_, i) => <div key={i} className="h-32 animate-pulse rounded-lg bg-muted" />)}
           </div>
         ) : (
           <div className="space-y-4">
-            {products.map((product) => (
-              <Card key={product.id} className={hasChanges(product.id) ? 'ring-2 ring-primary/50' : ''}>
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    {/* Product Image */}
-                    <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-                      <Image
-                        src={product.image}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </div>
-
-                    {/* Edit Form */}
-                    <div className="flex flex-1 flex-col gap-3">
-                      {/* Name Input */}
-                      <div className="space-y-1">
-                        <Label htmlFor={`name-${product.id}`} className="text-xs text-muted-foreground">
-                          Nom du produit
-                        </Label>
-                        <Input
-                          id={`name-${product.id}`}
-                          value={getProductValue(product, 'name') as string}
-                          onChange={(e) => handleProductChange(product.id, 'name', e.target.value)}
-                          placeholder="Nom du produit"
-                          className="h-9"
+            {products.map((product) => {
+              // On récupère l'image depuis image_url
+              // @ts-ignore
+              const imageUrl = product.image_url || product.image || "/placeholder.svg"
+              
+              return (
+                <Card key={product.id} className={hasChanges(product.id) ? 'ring-2 ring-primary/50' : ''}>
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <div className="relative size-24 shrink-0 overflow-hidden rounded-lg bg-muted">
+                        <Image
+                          src={imageUrl}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                          unoptimized
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        {/* Price Input */}
+                      <div className="flex flex-1 flex-col gap-3">
                         <div className="space-y-1">
-                          <Label htmlFor={`price-${product.id}`} className="text-xs text-muted-foreground">
-                            Prix (FCFA)
-                          </Label>
+                          <Label className="text-xs">Nom du produit</Label>
                           <Input
-                            id={`price-${product.id}`}
-                            type="number"
-                            value={(getProductValue(product, 'price') as number | null) ?? ''}
-                            onChange={(e) => {
-                              const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                              handleProductChange(product.id, 'price', value)
-                            }}
-                            placeholder="Prix"
+                            value={getProductValue(product, 'name') as string}
+                            onChange={(e) => handleProductChange(product.id, 'name', e.target.value)}
                             className="h-9"
                           />
                         </div>
 
-                        {/* Category Select */}
-                        <div className="space-y-1">
-                          <Label htmlFor={`category-${product.id}`} className="text-xs text-muted-foreground">
-                            Catégorie
-                          </Label>
-                          <Select
-                            value={getProductValue(product, 'category') as Category}
-                            onValueChange={(value) => handleProductChange(product.id, 'category', value)}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Prix (FCFA)</Label>
+                            <Input
+                              type="number"
+                              value={(getProductValue(product, 'price') as number) ?? ''}
+                              onChange={(e) => handleProductChange(product.id, 'price', e.target.value === '' ? null : parseFloat(e.target.value))}
+                              className="h-9"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs">Catégorie</Label>
+                            <Select
+                              value={(getProductValue(product, 'category') as string)?.toLowerCase()}
+                              onValueChange={(value) => handleProductChange(product.id, 'category', value)}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="parfums">Parfums</SelectItem>
+                                <SelectItem value="soins">Soins</SelectItem>
+                                <SelectItem value="cosmetiques">Cosmétiques</SelectItem>
+                                <SelectItem value="non classé">Non classé</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            onClick={() => handleSave(product.id)}
+                            disabled={!hasChanges(product.id) || savingId === product.id}
                           >
-                            <SelectTrigger id={`category-${product.id}`} className="h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="parfums">Parfums</SelectItem>
-                              <SelectItem value="soins">Soins</SelectItem>
-                              <SelectItem value="cosmetiques">Cosmétiques</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            {savingId === product.id ? <RefreshCw className="size-4 animate-spin" /> : savedId === product.id ? <Check className="size-4" /> : <Save className="size-4" />}
+                            <span className="ml-2">{savingId === product.id ? 'Sauvegarde...' : 'Sauvegarder'}</span>
+                          </Button>
                         </div>
                       </div>
-
-                      {/* Save Button */}
-                      <div className="flex justify-end">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSave(product.id)}
-                          disabled={!hasChanges(product.id) || savingId === product.id}
-                          className="gap-2"
-                        >
-                          {savingId === product.id ? (
-                            <>
-                              <RefreshCw className="size-4 animate-spin" />
-                              Sauvegarde...
-                            </>
-                          ) : savedId === product.id ? (
-                            <>
-                              <Check className="size-4" />
-                              Sauvegardé
-                            </>
-                          ) : (
-                            <>
-                              <Save className="size-4" />
-                              Sauvegarder
-                            </>
-                          )}
-                        </Button>
-                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         )}
       </main>
