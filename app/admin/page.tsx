@@ -18,8 +18,7 @@ import { Lock, RefreshCw, Save, Check, AlertCircle, ArrowLeft, Package } from 'l
 import Link from 'next/link'
 import Image from 'next/image'
 
-// Force le rafraîchissement des données à chaque visite
-export const revalidate = 0;
+
 
 const ADMIN_PASSWORD = 'stephy2024'
 
